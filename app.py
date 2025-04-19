@@ -9,20 +9,45 @@ import requests
 
 app = Flask(__name__)
 
-# اسم النموذج بعد التحميل
+# اسم الملف المحلي للنموذج
 MODEL_FILENAME = "modele_tomate.h5"
 
-# رابط Google Drive مباشر (بتنسيق export=download)
+# Google Drive File ID
 GDRIVE_FILE_ID = "17POPUvx7l12kwXsPVjhI-YWR-IxNEAh8"
-GDRIVE_URL = f"https://drive.google.com/uc?export=download&id={GDRIVE_FILE_ID}"
 
-# تحميل النموذج إذا غير موجود
+# 📥 دالة لتحميل النموذج من Google Drive بطريقة آمنة
+def download_model_from_gdrive(gdrive_id, destination):
+    def get_confirm_token(response):
+        for key, value in response.cookies.items():
+            if key.startswith('download_warning'):
+                return value
+        return None
+
+    def save_response_content(response, destination):
+        CHUNK_SIZE = 32768
+        with open(destination, "wb") as f:
+            for chunk in response.iter_content(CHUNK_SIZE):
+                if chunk:
+                    f.write(chunk)
+
+    URL = "https://docs.google.com/uc?export=download"
+    session = requests.Session()
+
+    response = session.get(URL, params={'id': gdrive_id}, stream=True)
+    token = get_confirm_token(response)
+
+    if token:
+        params = {'id': gdrive_id, 'confirm': token}
+        response = session.get(URL, params=params, stream=True)
+
+    save_response_content(response, destination)
+    print("✅ Modèle téléchargé et enregistré localement.")
+    print(f"📦 Taille du fichier modèle: {os.path.getsize(destination)} octets")
+
+# تحميل النموذج إذا غير موجود محليًا
 if not os.path.exists(MODEL_FILENAME):
     print("🔄 Téléchargement du modèle depuis Google Drive...")
-    response = requests.get(GDRIVE_URL)
-    with open(MODEL_FILENAME, 'wb') as f:
-        f.write(response.content)
-    print("✅ Modèle téléchargé et enregistré localement.")
+    download_model_from_gdrive(GDRIVE_FILE_ID, MODEL_FILENAME)
 
 # تحميل النموذج
 model = load_model(MODEL_FILENAME)
@@ -55,6 +80,7 @@ def predict():
             'class_name': class_names[predicted_class]
         }
 
+        # تنظيف الموارد
         del img_array, img, prediction
         gc.collect()
 
