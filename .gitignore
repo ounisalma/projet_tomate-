@@ -1,0 +1,10 @@
+venv-tomate/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.h5
+.env
+.DS_Store
+*.log
