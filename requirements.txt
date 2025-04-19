@@ -1,6 +1,6 @@
 absl-py==2.2.2
 astunparse==1.6.3
-blinker==1.9.0
+blinker==1.8.1
 certifi==2025.1.31
 charset-normalizer==3.4.1
 click==8.1.8

@@ -5,14 +5,30 @@ from flask import Flask, jsonify, request
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
 import gc
+import requests
 
 app = Flask(__name__)
 
-# تحميل النموذج مرة واحدة فقط عند تشغيل التطبيق
-model = load_model("modele_tomate (1).h5")
-print("LOADED MODEL ✅")
+# اسم النموذج بعد التحميل
+MODEL_FILENAME = "modele_tomate.h5"
 
-# أسماء الأصناف حسب ترتيب الدوسيات في التدريب
+# رابط Google Drive مباشر (بتنسيق export=download)
+GDRIVE_FILE_ID = "17POPUvx7l12kwXsPVjhI-YWR-IxNEAh8"
+GDRIVE_URL = f"https://drive.google.com/uc?export=download&id={GDRIVE_FILE_ID}"
+
+# تحميل النموذج إذا غير موجود
+if not os.path.exists(MODEL_FILENAME):
+    print("🔄 Téléchargement du modèle depuis Google Drive...")
+    response = requests.get(GDRIVE_URL)
+    with open(MODEL_FILENAME, 'wb') as f:
+        f.write(response.content)
+    print("✅ Modèle téléchargé et enregistré localement.")
+
+# تحميل النموذج
+model = load_model(MODEL_FILENAME)
+print("✅ Modèle chargé")
+
+# أسماء الأصناف
 class_names = ['Tomato_Early_blight', 'Tomato_Late_blight', 'Tomato_Leaf_Mold', 'Tomato_healthy']
 
 @app.route('/predict', methods=['POST'])
@@ -25,13 +41,11 @@ def predict():
         return jsonify({'error': 'No selected file'}), 400
 
     try:
-        # تحميل وتحضير الصورة
         img = image.load_img(BytesIO(file.read()), target_size=(224, 224))
         img_array = image.img_to_array(img)
         img_array = img_array / 255.0
         img_array = np.expand_dims(img_array, axis=0)
 
-        # التنبؤ بالصنف
         prediction = model.predict(img_array)
         predicted_class = np.argmax(prediction)
 
@@ -41,7 +55,6 @@ def predict():
             'class_name': class_names[predicted_class]
         }
 
-        # تنظيف الذاكرة
         del img_array, img, prediction
         gc.collect()
 
